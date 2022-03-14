@@ -12,22 +12,10 @@ exec 1>&-
 exec 1>$npipe
 exec 2>&1
 
-#: <<'END'
 yum install gcc make libffi-devel perl zlib-devel diffutils selinux-policy-devel -y
-wget --content-disposition https://dl.duosecurity.com/duoauthproxy-latest-src.tgz
-tar xzf duoauthproxy-*
-cd duoauthproxy-*
-make
-sudo ./duoauthproxy-build/install --install-dir /opt/duoauthproxy --service-user duo_authproxy_svc --log-group duo_authproxy_grp --create-init-script yes --enable-selinux=yes
-#END
-
-: <<'END'
-echo "Testinnhold" >> /home/orjan/testfil
-sudo apt-get install build-essential libffi-dev perl zlib1g-dev -y
 wget --content-disposition https://dl.duosecurity.com/duoauthproxy-latest-src.tgz
 tar xzf duoauthproxy-*
 duodir=$(ls -d */)
 cd $duodir
 make
-sudo ./duoauthproxy-build/install --install-dir /opt/duoauthproxy --service-user duo_authproxy_svc --log-group duo_authproxy_grp --create-init-script yes
-END
+sudo ./duoauthproxy-build/install --install-dir /opt/duoauthproxy --service-user duo_authproxy_svc --log-group duo_authproxy_grp --create-init-script yes --enable-selinux=yes
