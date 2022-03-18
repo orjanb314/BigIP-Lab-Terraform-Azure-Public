@@ -34,6 +34,14 @@ cd $duodir
 make
 sudo ./duoauthproxy-build/install --install-dir /opt/duoauthproxy --service-user duo_authproxy_svc --log-group duo_authproxy_grp --create-init-script yes --enable-selinux=yes
 
+cat << EOF > /home/orjan/duo-files
+Duo config file
+/opt/duoauthproxy/conf/authproxy.cfg
+
+Duo log file
+/opt/duoauthproxy/log/authproxy.log
+EOF
+
 cat << EOF > /opt/duoauthproxy/conf/authproxy.cfg
 ; Complete documentation about the Duo Auth Proxy can be found here:
 ; https://duo.com/docs/authproxy_reference
@@ -95,8 +103,19 @@ EOF
 #------OpenLDAP install and config--------
 #Based on https://computingforgeeks.com/install-configure-openldap-server-centos/
 
+echo ""
+echo ""
+echo "---------Starting LDAP server install---------"
+echo ""
+
+cd ..
+
+echo ""
+echo "---------sudo dnf install wget vim......---------"
 sudo dnf install wget vim cyrus-sasl-devel libtool-ltdl-devel openssl-devel libdb-devel make libtool autoconf  tar gcc perl perl-devel -y
 
+echo ""
+echo "---------sudo tee /etc/yum.repos.d/epel-el7.repo---------"
 sudo tee /etc/yum.repos.d/epel-el7.repo<<EOF
 [epel-el7]
 name=Extra Packages for Enterprise Linux 7 - x86_64
@@ -105,26 +124,53 @@ enabled=0
 gpgcheck=0
 EOF
 
+echo ""
+echo "------------------"
 sudo dnf --enablerepo=epel-el7 install wiredtiger wiredtiger-devel -y
+
+echo ""
+echo "--------Misc preparation----------"
 sudo useradd -r -M -d /var/lib/openldap -u 55 -s /usr/sbin/nologin ldap
 VER=2.6.1
 wget https://www.openldap.org/software/download/OpenLDAP/openldap-release/openldap-$VER.tgz
 tar xzf openldap-$VER.tgz
 sudo mv openldap-$VER /opt
+cd /opt/openldap-$VER
+
+echo ""
+echo "--------configure----------"
 sudo ./configure --prefix=/usr --sysconfdir=/etc --disable-static \
 --enable-debug --with-tls=openssl --with-cyrus-sasl --enable-dynamic \
 --enable-crypt --enable-spasswd --enable-slapd --enable-modules \
 --enable-rlookups --enable-backends=mod --disable-ndb --disable-sql \
 --disable-shell --disable-bdb --disable-hdb --enable-overlays=mod
+
+echo ""
+echo "---------sudo make depend---------"
 sudo make depend
+
+echo ""
+echo "---------sudo make---------"
 sudo make
+
+echo ""
+echo "---------sudo make install---------"
 sudo make install
+
+echo ""
+echo "---------Making folders and setting rights---------"
 sudo mkdir /var/lib/openldap /etc/openldap/slapd.d
 sudo chown -R ldap:ldap /var/lib/openldap
 sudo chown root:ldap /etc/openldap/slapd.conf
 sudo chmod 640 /etc/openldap/slapd.conf
+
+echo ""
+echo "---------copying schema---------"
 sudo cp /usr/share/doc/sudo/schema.OpenLDAP  /etc/openldap/schema/sudo.schema
 sudo su -
+
+echo ""
+echo "---------Starting LDAP server configuration---------"
 
 cat << 'EOL' > /etc/openldap/schema/sudo.ldif
 dn: cn=sudo,cn=schema,cn=config
@@ -139,6 +185,8 @@ olcAttributeTypes: ( 1.3.6.1.4.1.15953.9.1.6 NAME 'sudoRunAsUser' DESC 'User(s) 
 olcAttributeTypes: ( 1.3.6.1.4.1.15953.9.1.7 NAME 'sudoRunAsGroup' DESC 'Group(s) impersonated by sudo' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
 olcObjectClasses: ( 1.3.6.1.4.1.15953.9.2.1 NAME 'sudoRole' SUP top STRUCTURAL DESC 'Sudoer Entries' MUST ( cn ) MAY ( sudoUser $ sudoHost $ sudoCommand $ sudoRunAs $ sudoRunAsUser $ sudoRunAsGroup $ sudoOption $ description ) )
 EOL
+
+sudo mv /etc/openldap/slapd.ldif /etc/openldap/slapd.ldif.bak
 
 cat << 'EOL' > /etc/openldap/slapd.ldif
 dn: cn=config
@@ -261,6 +309,8 @@ objectClass: top
 ou: people
 EOL
 
+sudo ldapadd -Y EXTERNAL -H ldapi:/// -f basedn.ldif
+
 cat << 'EOL' > users.ldif
 dn: uid=orjan,ou=people,dc=ldapmaster,dc=orbalabs,dc=local
 objectClass: inetOrgPerson
@@ -286,6 +336,7 @@ gidNumber: 10000
 memberUid: orjan
 EOL
 
+sudo ldapadd -Y EXTERNAL -H ldapi:/// -f users.ldif
 sudo ldappasswd -H ldapi:/// -Y EXTERNAL -s $orjan_password "uid=orjan,ou=people,dc=ldapmaster,dc=orbalabs,dc=local"
 
 cat << 'EOL' > bindDNuser.ldif
