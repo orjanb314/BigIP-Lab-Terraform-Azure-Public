@@ -20,9 +20,9 @@ exec 2>&1
 #sudo service apache2 start
 
 #Centos
-sudo dnf install httpd
-sudo firewall-cmd --permanent --add-service=https
-sudo firewall-cmd --reload
+sudo dnf install httpd -y
+#sudo firewall-cmd --permanent --add-service=https
+#sudo firewall-cmd --reload
 hostname=$(hostname)
-sudo sed -i "s/It works!/It works! ($hostname)/" /var/www/html/index.html
+sudo sed -i "s/Page<\/strong>/Page<\/strong> ($hostname)/" /usr/share/httpd/noindex/index.html
 sudo systemctl start httpd
